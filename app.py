@@ -294,6 +294,22 @@ def main_app():
                     file_path = f'{today}.xlsx'
                     write_to_spreadsheet(data, file_path)
                     st.success("Data added to spreadsheet.")
+            delete_record_num = st.number_input("Enter record number to delete", min_value=0, step=1) + 1
+            if st.button("Delete Record", key='delete1'):
+                if os.path.exists(file_path):
+                    try:
+                        df = pd.read_excel(file_path)
+                        if 1 <= delete_record_num <= len(df):
+                            if delete_record_num > len(df) - 10:
+                                df = df.drop(df.index[delete_record_num - 1])
+                                df.to_excel(file_path, index=False)
+                                st.success(f"Record number {delete_record_num - 1} deleted.")
+                            else:
+                                st.error("Only the last 10 records can be deleted.")
+                        else:
+                            st.error("Record number out of range.")
+                    except Exception as e:
+                        st.error(f"An error occurred: {e}")
 
         with col2:
             if os.path.exists(file_path):
