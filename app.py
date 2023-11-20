@@ -252,21 +252,23 @@ def display_daily_balance(df):
         col3.metric("Total Cash Out", f"{total_cash_out}")
         col4.metric("Total Online", f"{total_online}")
 
+
+
+default_message = '''Name:
+Phone:
+Delivery Address:
+Fare:
+Cash:
+Online:
+Credit Card:
+last-digits:'''
+
+
 def main_app():
     st.title("Crumble Data Entry App")
 
     today = datetime.datetime.now().strftime("%d-%m-%Y")
     file_path = f'{today}.xlsx'
-
-
-    default_message = '''Name:
-    Phone:
-    Delivery Address:
-    Fare:
-    Cash:
-    Online:
-    Credit Card:
-    last-digits:'''
 
     if 'message_text' not in st.session_state or st.session_state.message_text.strip() == "":
         st.session_state.message_text = default_message
