@@ -112,7 +112,7 @@ def display_by_rider(df, rider_name):
         st.markdown("---")
 
 def display_stats_view(df):
-    col1, s1, col2, s2, col3, s3, col4, s4, col5 = st.columns([3, 1, 3, 1, 4, 1, 3, 1, 4])
+    col1, s1, col2, s2, col3, s3, col4 = st.columns([3, 1, 3, 1, 4, 1, 3])
 
     # Specific table for Pickup
     pickup_df = df[df['Delivery Address'].str.lower().isin(['pickup', 'pick-up'])]
@@ -161,21 +161,21 @@ def display_stats_view(df):
         st.markdown("---")
 
     # Specific table for Pickup
-    with col5:
-        st.markdown(f"<h3 style='color:#5C83F5;'>Pickup</h3>", unsafe_allow_html=True)
-        st.dataframe(pickup_df[['Name', 'Cash', 'Online', 'Credit Card']])
-        c1, c2, c3 = st.columns(3)
-        c1.metric("Pickup Cash", f"{pickup_cash_total} Rs")
-        c2.metric("Pickup Online", f"{pickup_online_total} Rs")
-        c3.metric("Pickup Credit Card", f"{pickup_credit_card_total} Rs")
-        st.markdown("---")
+    # with col5:
+    #     st.markdown(f"<h3 style='color:#5C83F5;'>Pickup</h3>", unsafe_allow_html=True)
+    #     st.dataframe(pickup_df[['Name', 'Cash', 'Online', 'Credit Card']])
+    #     c1, c2, c3 = st.columns(3)
+    #     c1.metric("Pickup Cash", f"{pickup_cash_total} Rs")
+    #     c2.metric("Pickup Online", f"{pickup_online_total} Rs")
+    #     c3.metric("Pickup Credit Card", f"{pickup_credit_card_total} Rs")
+    #     st.markdown("---")
 
 
 def display_daily_balance(df):
     col1,col2 = st.columns(2)
     with col1:
 
-        st.markdown("### Daily Balance")
+        st.markdown(f"<h3 style='color:#5C83F5;'>Daily Balance</h3>", unsafe_allow_html=True)
 
         # Initialize the balance DataFrame with opening balance
         balance_data = [{
@@ -264,20 +264,22 @@ Credit Card:
 last-digits:'''
 
 
+
 def main_app():
-    st.title("Crumble Data Entry App")
+    st.title("Data Entry App")
 
     today = datetime.datetime.now().strftime("%d-%m-%Y")
     file_path = f'{today}.xlsx'
 
+    # Ensure that 'message_text' is in the session state
     if 'message_text' not in st.session_state or st.session_state.message_text.strip() == "":
         st.session_state.message_text = default_message
+    
+    # Define the tabs
+    tab1, tab2, tab3 = st.tabs(["Data Entry", "Rider Info", "Stats"])
 
-    view_option = st.radio("Select View", ("Main View", "Rider View", "Stats View"), horizontal=True)
-    col1, spacer, col2 = st.columns([4, 1, 5])
-
-
-    if view_option == "Main View":
+    with tab1:
+        col1, spacer, col2 = st.columns([4, 1, 5])
         with col1:
             st.session_state.message_text = st.text_area("Enter the message here:", st.session_state.message_text, height=300)
             selected_rider = st.radio("Select Rider", ["Pickup", "Shazaib", "Zubair", "Indrive"], horizontal=True)
@@ -334,13 +336,15 @@ def main_app():
 
                 st.write("Last 10 Records:")
                 st.dataframe(df.tail(10))
+        # Code for Data Entry tab
+        # ...
 
-    elif view_option == "Rider View":
-        col_date, _ = st.columns([1, 14]) 
+    with tab2:
+        col_date, _ = st.columns([1, 14])
         col_err, _ = st.columns([1, 5])
         with col_date:
-            selected_date = st.date_input("Select Date", datetime.datetime.today())
-        file_path_for_date = selected_date.strftime("%d-%m-%Y") + '.xlsx'
+            selected_date2 = st.date_input("Select Date", datetime.datetime.today(), key="date_input_2")
+        file_path_for_date = selected_date2.strftime("%d-%m-%Y") + '.xlsx'
         col1, spacer, col2 = st.columns([4, 1, 4])
         if os.path.exists(file_path_for_date):
             df = pd.read_excel(file_path_for_date, dtype={'Phone': str, 'Fare': float, 'Cash': float, 'Online': float, 'Credit Card': float})
@@ -350,36 +354,37 @@ def main_app():
                     display_by_rider(df, rider)
         else:
             with col_err:
-                st.error(f"No records found for {selected_date.strftime('%d-%m-%Y')}")
+                st.error(f"No records found for {selected_date2.strftime('%d-%m-%Y')}")
 
-    elif view_option == "Stats View":
-        col_date, _ = st.columns([1, 14]) 
+    with tab3:
+        col_date, _ = st.columns([1, 14])
         col_err, _ = st.columns([1, 5])
         with col_date:
-            selected_date = st.date_input("Select Date", datetime.datetime.today())
-        file_path_for_date = selected_date.strftime("%d-%m-%Y") + '.xlsx'
+            selected_date3 = st.date_input("Select Date", datetime.datetime.today(), key="date_input_3")  # Unique key
+        file_path_for_date = selected_date3.strftime("%d-%m-%Y") + '.xlsx'
         if os.path.exists(file_path_for_date):
             df = pd.read_excel(file_path_for_date)
             display_stats_view(df)
             display_daily_balance(df)
         else:
             with col_err:
-                st.error(f"No records found for {selected_date.strftime('%d-%m-%Y')}")
+                st.error(f"No records found for {selected_date3.strftime('%d-%m-%Y')}")
 
-
-
-USERNAME = "crumble"
-PASSWORD = "drakoo123"
 
 def login(username, password):
     return username == USERNAME and password == PASSWORD
 
 
+USERNAME = "crumble"
+PASSWORD = "abc123"
+
+# Check if the user is logged in
 if 'logged_in' not in st.session_state:
     st.session_state.logged_in = False
 
-
-if not st.session_state.logged_in:
+if st.session_state.logged_in:
+    main_app()  # Show the main app if already logged in
+else:
     st.sidebar.title("Login")
     username = st.sidebar.text_input("Username")
     password = st.sidebar.text_input("Password", type="password")
@@ -389,5 +394,16 @@ if not st.session_state.logged_in:
             st.experimental_rerun()  # Rerun the app to display the main app
         else:
             st.sidebar.error("Incorrect username or password.")
-else:
-    main_app()
+
+
+css = '''
+<style>
+    .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
+    font-size:20px;
+    font-family:sans-serif;
+    font-weight: 600;
+    }
+</style>
+'''
+
+st.markdown(css, unsafe_allow_html=True)
