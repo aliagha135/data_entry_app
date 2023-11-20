@@ -338,11 +338,9 @@ def main_app():
 
 
 def login(username, password):
-    return username == USERNAME and password == PASSWORD
+    return username == st.secrets["USERNAME"] and password == st.secrets["PASSWORD"]
 
 
-USERNAME = "crumble"
-PASSWORD = "abc123"
 
 # Check if the user is logged in
 if 'logged_in' not in st.session_state:
