@@ -172,9 +172,8 @@ def display_stats_view(df):
 
 
 def display_daily_balance(df):
-    col1,col2 = st.columns(2)
+    col1, _ = st.columns([1, 1])  # Adjust column sizes as needed
     with col1:
-
         st.markdown(f"<h3 style='color:#5C83F5;'>Daily Balance</h3>", unsafe_allow_html=True)
 
         # Initialize the balance DataFrame with opening balance
@@ -186,8 +185,7 @@ def display_daily_balance(df):
             "Online": 0
         }]
 
-        # Initialize the running balance
-        running_balance = 7000
+        running_balance = 7000  # Initialize the running balance
 
         for index, row in df.iterrows():
             cash_in = row['Cash'] if row['Cash'] else 0
@@ -196,16 +194,12 @@ def display_daily_balance(df):
             fare_paid_online = row.get('Fare paid Online', 'no') == 'yes'
             fare_amount = row['Fare'] if row['Fare'] else 0
 
-            # Add 'Fare' prefix to the name if fare is paid online and needs to be subtracted
             name = row['Name'] + " Fare" if fare_paid_online else row['Name']
-
-            # Deduct fare from cash if fare is paid online
             if fare_paid_online:
                 cash_out = -fare_amount
                 running_balance -= fare_amount
 
-            # Update running balance for cash in transactions
-            running_balance += cash_in
+            running_balance += cash_in  # Update running balance
 
             balance_data.append({
                 "Name": name,
@@ -215,34 +209,16 @@ def display_daily_balance(df):
                 "Online": online
             })
 
-        # Create a DataFrame from the balance data
         balance_df = pd.DataFrame(balance_data)
 
-        # Calculate totals
-        total_running_balance_cash = balance_df['Running Balance (Cash)'].iloc[-1]
-        total_cash_in = balance_df['Cash In'].sum()
-        total_cash_out = balance_df['Cash Out'].sum()
-        total_online = balance_df['Online'].sum()
+        # Calculate totals without adding them to the DataFrame
+        total_running_balance_cash = running_balance
+        total_cash_in = sum(balance_df['Cash In'])
+        total_cash_out = sum(balance_df['Cash Out'])
+        total_online = sum(balance_df['Online'])
 
-        # Create a DataFrame for the totals row
-        totals_df = pd.DataFrame([{
-            "Name": "Totals",
-            "Running Balance (Cash)": total_running_balance_cash,
-            "Cash In": total_cash_in,
-            "Cash Out": total_cash_out,
-            "Online": total_online
-        }])
-
-        # Concatenate the totals DataFrame to the original DataFrame
-        balance_df = pd.concat([balance_df, totals_df], ignore_index=True)
-
-        total_running_balance_cash = balance_df['Running Balance (Cash)'].iloc[-1]
-        total_cash_in = balance_df['Cash In'].sum()
-        total_cash_out = balance_df['Cash Out'].sum()
-        total_online = balance_df['Online'].sum()
-
-        # Display the DataFrame
-        st.dataframe(balance_df)
+        # Display the DataFrame (show all rows)
+        st.dataframe(balance_df, height=450)  # Adjust height as needed to display all rows
 
         # Display totals using metrics
         st.markdown("### Totals")
@@ -251,6 +227,7 @@ def display_daily_balance(df):
         col2.metric("Total Cash In", f"{total_cash_in}")
         col3.metric("Total Cash Out", f"{total_cash_out}")
         col4.metric("Total Online", f"{total_online}")
+
 
 
 
@@ -289,55 +266,44 @@ def main_app():
                 data = parse_message(st.session_state.message_text, selected_rider)
                 data['Fare paid Online'] = fare_paid_online_option.lower()
 
-                # Check for incomplete fields
-                required_fields = [str(data[field]) for field in ['Name', 'Phone', 'Delivery Address', 'Fare', 'last-digits']]
-                if any(field.strip() == "" for field in required_fields):
-                    st.error("Error: Please fill all required fields ( and 1 from among Cash, Online, and Credit Card).")
+                errors = []
+
+                # Check if exactly one payment method is selected
+                payment_methods_filled = sum(bool(data[method]) for method in ['Cash', 'Online', 'Credit Card'])
+                if payment_methods_filled != 1:
+                    errors.append("Exactly one of Cash, Online, or Credit Card must be selected.")
+
+                # Check if Cash is selected and Fare paid Online is 'yes'
+                if data['Cash'] and data['Fare paid Online'] == 'yes':
+                    errors.append("If Cash is selected, Fare Paid Online must be 'No'.")
+
+                # Check if Credit Card is selected, then last-digits must be filled
+                if data['Credit Card'] and not data['last-digits']:
+                    errors.append("Last-digits field is required when Credit Card is selected.")
+
+                # Check numeric fields
+                numeric_fields = ['Cash', 'Online', 'Fare', 'Credit Card']
+                for field in numeric_fields:
+                    if data[field] and not isinstance(data[field], (int, float)):
+                        errors.append(f"{field} must be numeric.")
+
+                if errors:
+                    st.error("Errors: " + "; ".join(errors))
                 else:
-                    # Check if Cash, Online, and Credit Card fields have valid single entry
-                    payment_methods = [data['Cash'], data['Online'], data['Credit Card']]
-                    filled_methods = sum([1 for method in payment_methods if method not in [None, "", 0]])
-
-                    if filled_methods > 1:
-                        st.error("Error: Only one of Cash, Online, or Credit Card can have a value at a time.")
-                    elif data['Cash'] not in [None, "", 0] and data['Fare paid Online'] == 'yes':
-                        st.error("Error: Cannot process as Cash value is present and Fare Paid Online is marked as 'Yes'.")
-                    else:
-                        today = datetime.datetime.now().strftime("%d-%m-%Y")
-                        file_path = f'{today}.xlsx'
-                        write_to_spreadsheet(data, file_path)
-                        st.success("Data added to spreadsheet.")
-
-            delete_record_num = st.number_input("Enter record number to delete", min_value=0, step=1) + 1
-            if st.button("Delete Record", key='delete1'):
-                if os.path.exists(file_path):
-                    try:
-                        df = pd.read_excel(file_path)
-                        if 1 <= delete_record_num <= len(df):
-                            if delete_record_num > len(df) - 10:
-                                df = df.drop(df.index[delete_record_num - 1])
-                                df.to_excel(file_path, index=False)
-                                st.success(f"Record number {delete_record_num - 1} deleted.")
-                            else:
-                                st.error("Only the last 10 records can be deleted.")
-                        else:
-                            st.error("Record number out of range.")
-                    except Exception as e:
-                        st.error(f"An error occurred: {e}")
+                    today = datetime.datetime.now().strftime("%d-%m-%Y")
+                    file_path = f'{today}.xlsx'
+                    write_to_spreadsheet(data, file_path)
+                    st.success("Data added to spreadsheet.")
 
         with col2:
             if os.path.exists(file_path):
                 df = pd.read_excel(file_path, dtype={'Phone': str})
-                # Convert the columns to string for display
                 df['Phone'] = df['Phone'].astype(str).str.replace(r'\.0$', '', regex=True)
                 df['Cash'] = df['Cash'].astype(str)
                 df['Online'] = df['Online'].astype(str)
                 df['Credit Card'] = df['Credit Card'].astype(str)
-
                 st.write("Last 10 Records:")
                 st.dataframe(df.tail(10))
-        # Code for Data Entry tab
-        # ...
 
     with tab2:
         col_date, _ = st.columns([1, 14])
